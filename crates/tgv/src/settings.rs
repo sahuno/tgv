@@ -109,6 +109,10 @@ pub struct Cli {
     #[arg(long, default_value = "~/.tgv")]
     cache_dir: String,
 
+    /// Minimum mapping quality. Reads with MAPQ below this value are skipped (0 = no filter).
+    #[arg(long = "min-mapq", default_value_t = 0)]
+    min_mapq: u8,
+
     /// Subcommand
     #[command(subcommand)]
     pub command: Option<Commands>,
@@ -254,6 +258,7 @@ impl TryFrom<Cli> for Settings {
                 backend,
                 ucsc_host: cli.host.into(),
                 cache_dir,
+                min_mapq: cli.min_mapq,
             },
             initial_state_messages,
 
@@ -361,6 +366,13 @@ mod tests {
             "1".to_string(),
             12345,
         ).into()],
+        ..Settings::default()
+    }))]
+    #[case("tgv input.bam --min-mapq 20", Ok(Settings {
+        core: gv_core::settings::Settings {
+        bam_path: Some(("input.bam".to_string(), "input.bam.bai".to_string())),
+        min_mapq: 20,
+        ..gv_core::settings::Settings::default()},
         ..Settings::default()
     }))]
     #[case("tgv input.bam -r TP53 -g hg19 --no-reference", Err(TGVError::CliError("".to_string())))]

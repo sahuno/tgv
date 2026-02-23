@@ -32,6 +32,9 @@ pub struct Settings {
     pub ucsc_host: UcscHost,
 
     pub cache_dir: String,
+
+    /// Minimum mapping quality. Reads with MAPQ below this value are skipped. 0 = no filter.
+    pub min_mapq: u8,
     //pub palette: Palette,
 }
 
@@ -45,6 +48,7 @@ impl Default for Settings {
             backend: BackendType::default(), // Default backend
             ucsc_host: UcscHost::default(),
             cache_dir: shellexpand::tilde("~/.tgv").to_string(),
+            min_mapq: 0,
         }
     }
 }

@@ -44,6 +44,9 @@ pub fn render_help(area: &Rect, buf: &mut Buffer) -> Result<(), TGVError> {
  |:paired|                       View reads as pairs
  |:mod|                          Color bases by 5mC/5hmC modification probability (MM/ML tags)
  |:clear|                        Reset alignment display options
+
+ CLI options:
+ |--min-mapq <N>|  Skip reads with mapping quality below N (default: 0 = no filter)
  ",
         env!("CARGO_PKG_VERSION")
     );

@@ -57,6 +57,9 @@ tgv s3://my-bucket/sorted.bam -r TP53 -g hg19
 
 # BAM file with no reference genome
 tgv non_human.bam -r 1:123 --no-reference
+
+# Skip reads with low mapping quality (e.g. MAPQ < 20)
+tgv sorted.bam --min-mapq 20
 ```
 
 [Supported formats](https://github.com/zeqianli/tgv/wiki/Usage)

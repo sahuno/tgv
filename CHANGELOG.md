@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.0.8
+
+- Min mapping quality filter: `--min-mapq <N>` CLI flag skips reads with MAPQ below N (default: 0 = no filter)
+
 ## 0.0.7
 
 - Base modification visualization: color reads by 5mC / 5hmC / 6mA probability from BAM `MM`/`ML` tags (`:mod` to toggle, `:clear` to reset)

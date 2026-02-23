@@ -24,10 +24,12 @@ pub struct BamRepository {
     header: Header,
 
     reader: bam::r#async::io::Reader<noodles::bgzf::r#async::io::Reader<File>>,
+
+    min_mapq: u8,
 }
 
 impl BamRepository {
-    async fn new(bam_path: &str, bai_path: &str) -> Result<Self, TGVError> {
+    async fn new(bam_path: &str, bai_path: &str, min_mapq: u8) -> Result<Self, TGVError> {
         use tokio::fs::File;
 
         let mut reader = File::open(bam_path)
@@ -51,6 +53,7 @@ impl BamRepository {
             index,
             header,
             reader,
+            min_mapq,
         })
     }
 }
@@ -65,10 +68,12 @@ pub struct RemoteBamRepository {
 
     reader:
         bam::r#async::io::Reader<noodles::bgzf::r#async::io::Reader<Compat<FuturesAsyncReader>>>,
+
+    min_mapq: u8,
 }
 
 impl RemoteBamRepository {
-    pub async fn new(s3_bam_path: &str, s3_bai_path: &str) -> Result<Self, TGVError> {
+    pub async fn new(s3_bam_path: &str, s3_bai_path: &str, min_mapq: u8) -> Result<Self, TGVError> {
         let (bucket, name) = s3_bam_path
             .strip_prefix("s3://")
             .unwrap()
@@ -101,6 +106,7 @@ impl RemoteBamRepository {
 
             header,
             reader,
+            min_mapq,
         })
     }
 
@@ -143,14 +149,14 @@ pub enum AlignmentRepositoryEnum {
 }
 
 impl AlignmentRepositoryEnum {
-    pub async fn new(bam_path: &str, bai_path: &str) -> Result<Self, TGVError> {
+    pub async fn new(bam_path: &str, bai_path: &str, min_mapq: u8) -> Result<Self, TGVError> {
         if is_url(bam_path) {
             Ok(AlignmentRepositoryEnum::RemoteBam(
-                RemoteBamRepository::new(bam_path, bai_path).await?,
+                RemoteBamRepository::new(bam_path, bai_path, min_mapq).await?,
             ))
         } else {
             Ok(AlignmentRepositoryEnum::Bam(
-                BamRepository::new(bam_path, bai_path).await?,
+                BamRepository::new(bam_path, bai_path, min_mapq).await?,
             ))
         }
     }
@@ -171,9 +177,15 @@ impl AlignmentRepositoryEnum {
                 let mut index = 0;
                 match self {
                     AlignmentRepositoryEnum::Bam(inner) => {
+                        let min_mapq = inner.min_mapq;
                         let mut query = inner.reader.query(&inner.header, &inner.index, &region)?;
 
                         while let Some(record) = query.try_next().await? {
+                            if let Some(mq) = record.mapping_quality() {
+                                if u8::from(mq) < min_mapq {
+                                    continue;
+                                }
+                            }
                             records.push(AlignedRead::from_bam_record(
                                 index,
                                 record,
@@ -183,9 +195,15 @@ impl AlignmentRepositoryEnum {
                         }
                     }
                     AlignmentRepositoryEnum::RemoteBam(inner) => {
+                        let min_mapq = inner.min_mapq;
                         let mut query = inner.reader.query(&inner.header, &inner.index, &region)?;
 
                         while let Some(record) = query.try_next().await? {
+                            if let Some(mq) = record.mapping_quality() {
+                                if u8::from(mq) < min_mapq {
+                                    continue;
+                                }
+                            }
                             records.push(AlignedRead::from_bam_record(
                                 index,
                                 record,
