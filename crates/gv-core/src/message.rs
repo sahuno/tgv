@@ -3,6 +3,13 @@ use crate::strand::Strand;
 use strum::Display;
 
 #[derive(Debug, Clone, Eq, PartialEq, Display)]
+pub enum ExportFormat {
+    Html,
+    Svg,
+    Text,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Display)]
 pub enum Message {
     Move(Movement),
 
@@ -14,6 +21,9 @@ pub enum Message {
     SetAlignmentOption(Vec<AlignmentDisplayOption>),
 
     Message(String),
+
+    /// Export current view to a file.
+    Export(ExportFormat, String),
 }
 
 impl From<Movement> for Message {

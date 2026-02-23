@@ -1,18 +1,20 @@
 /// The main app object
 ///
 use crossterm::event::{self, Event, KeyEventKind};
-use ratatui::{Terminal, buffer::Buffer, layout::Rect, prelude::Backend};
+use ratatui::{Terminal, backend::TestBackend, buffer::Buffer, layout::Rect, prelude::Backend};
 
 use crate::{
     layout::{AlignmentView, MainLayout},
     message::Message,
     mouse::MouseRegister,
     register::{KeyRegisterType, Registers},
+    rendering::export::{buffer_to_html, buffer_to_svg, buffer_to_text},
     settings::Settings,
 };
 use gv_core::{
     error::TGVError,
     intervals::{Focus, GenomeInterval, Region},
+    message::ExportFormat,
     repository::Repository,
     state::State,
 };
@@ -187,6 +189,17 @@ impl App {
                     self.state.add_message(message);
                 }
 
+                Message::Core(gv_core::message::Message::Export(format, path)) => {
+                    match self.export_view(&format, &path) {
+                        Ok(()) => self
+                            .state
+                            .add_message(format!("Exported to {}", path)),
+                        Err(e) => self
+                            .state
+                            .add_message(format!("Export failed: {}", e)),
+                    }
+                }
+
                 Message::SwitchScene(scene) => {
                     self.scene = scene;
                 }
@@ -264,6 +277,42 @@ impl App {
         // Cytobands
         // TODO
         //
+        Ok(())
+    }
+
+    /// Capture the current view into an in-memory buffer and write it to `path`.
+    fn export_view(&self, format: &ExportFormat, path: &str) -> Result<(), TGVError> {
+        let area = self.layout.main_area;
+        let backend = TestBackend::new(area.width, area.height);
+        let mut terminal = Terminal::new(backend)?;
+        terminal.draw(|frame| {
+            let _ = self.render(frame.buffer_mut());
+        })?;
+        let buf = terminal.backend().buffer().clone();
+
+        // Expand ~ in the path.
+        let expanded = if path.starts_with("~/") {
+            let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+            format!("{}/{}", home, &path[2..])
+        } else {
+            path.to_string()
+        };
+
+        let content = match format {
+            ExportFormat::Html => buffer_to_html(&buf),
+            ExportFormat::Svg => buffer_to_svg(&buf),
+            ExportFormat::Text => buffer_to_text(&buf),
+        };
+
+        // Create parent directories if needed.
+        if let Some(parent) = std::path::Path::new(&expanded).parent() {
+            if !parent.as_os_str().is_empty() {
+                std::fs::create_dir_all(parent)?;
+            }
+        }
+
+        std::fs::write(&expanded, content)?;
+
         Ok(())
     }
 

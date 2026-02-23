@@ -44,6 +44,9 @@ pub fn render_help(area: &Rect, buf: &mut Buffer) -> Result<(), TGVError> {
  |:paired|                       View reads as pairs
  |:mod|                          Color bases by 5mC/5hmC modification probability (MM/ML tags)
  |:clear|                        Reset alignment display options
+ |:export html <path>|           Save current view as HTML (colours preserved)
+ |:export svg  <path>|           Save current view as SVG vector image
+ |:export text <path>|           Save current view as plain text
 
  CLI options:
  |--min-mapq <N>|  Skip reads with mapping quality below N (default: 0 = no filter)

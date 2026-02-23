@@ -6,6 +6,7 @@ mod contig_list;
 mod coordinate;
 mod coverage;
 mod cytoband;
+pub mod export;
 mod help;
 mod intervals;
 mod sequence;

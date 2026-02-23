@@ -1,6 +1,8 @@
 use crate::{
     error::TGVError,
-    message::{AlignmentDisplayOption, AlignmentFilter, AlignmentSort, Message, Movement},
+    message::{
+        AlignmentDisplayOption, AlignmentFilter, AlignmentSort, ExportFormat, Message, Movement,
+    },
 };
 use nom::{
     IResult, Parser,
@@ -43,6 +45,10 @@ pub fn parse(input: &str) -> Result<Vec<Message>, TGVError> {
         return Ok(vec![Message::SetAlignmentOption(vec![
             AlignmentDisplayOption::ShowBaseModifications,
         ])]);
+    }
+
+    if let Some(result) = try_parse_export(input) {
+        return result;
     }
 
     if let Ok((remaining, options)) = parse_display_options(input) {
@@ -252,6 +258,37 @@ fn node_base_filter(input: &str) -> IResult<&str, AlignmentFilter> {
 
     Ok((input, filter))
 }
+/// Parse `:export <format> <path>` — returns Some(result) if the input starts with "export".
+fn try_parse_export(input: &str) -> Option<Result<Vec<Message>, TGVError>> {
+    let trimmed = input.trim();
+    let lower = trimmed.to_ascii_lowercase();
+    if !lower.starts_with("export") {
+        return None;
+    }
+    let rest = trimmed["export".len()..].trim();
+    let (format_str, path) = match rest.split_once(|c: char| c.is_ascii_whitespace()) {
+        Some((f, p)) => (f.trim(), p.trim()),
+        None => (rest, ""),
+    };
+    let format = match format_str.to_ascii_lowercase().as_str() {
+        "html" => ExportFormat::Html,
+        "svg" => ExportFormat::Svg,
+        "text" | "txt" => ExportFormat::Text,
+        other => {
+            return Some(Err(TGVError::RegisterError(format!(
+                "Unknown export format '{}'. Use: html, svg, text",
+                other
+            ))));
+        }
+    };
+    if path.is_empty() {
+        return Some(Err(TGVError::RegisterError(
+            "Usage: export <format> <path>  (e.g. export html ~/snapshot.html)".to_string(),
+        )));
+    }
+    Some(Ok(vec![Message::Export(format, path.to_string())]))
+}
+
 fn node_filter(input: &str) -> IResult<&str, AlignmentFilter> {
     delimited(multispace0, alt((node_base_filter,)), multispace0).parse(input)
 }
@@ -364,6 +401,20 @@ mod tests {
             Err(_) => {
                 // Ok
             }
+        }
+    }
+
+    #[rstest]
+    #[case("export html ~/snap.html", Ok(vec![Message::Export(ExportFormat::Html, "~/snap.html".to_string())]))]
+    #[case("EXPORT HTML /tmp/out.html", Ok(vec![Message::Export(ExportFormat::Html, "/tmp/out.html".to_string())]))]
+    #[case("export svg /tmp/out.svg", Ok(vec![Message::Export(ExportFormat::Svg, "/tmp/out.svg".to_string())]))]
+    #[case("export text /tmp/out.txt", Ok(vec![Message::Export(ExportFormat::Text, "/tmp/out.txt".to_string())]))]
+    #[case("export txt /tmp/out.txt", Ok(vec![Message::Export(ExportFormat::Text, "/tmp/out.txt".to_string())]))]
+    fn test_export_command(#[case] input: &str, #[case] expected: Result<Vec<Message>, TGVError>) {
+        match (parse(input), expected) {
+            (Ok(result), Ok(expected)) => assert_eq!(result, expected),
+            (Err(_), Err(_)) => {}
+            (got, exp) => panic!("Expected {:?}, got {:?}", exp, got),
         }
     }
 

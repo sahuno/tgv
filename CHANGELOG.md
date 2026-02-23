@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.0.9
+
+- Export current view with `:export html <path>`, `:export svg <path>`, or `:export text <path>`
+  - HTML: full colours preserved as inline CSS, opens in any browser
+  - SVG: vector image, scales without loss of quality
+  - Text: plain characters, no colour
+
 ## 0.0.8
 
 - Min mapping quality filter: `--min-mapq <N>` CLI flag skips reads with MAPQ below N (default: 0 = no filter)
